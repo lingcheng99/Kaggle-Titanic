@@ -1,68 +1,102 @@
-> train=read.csv('train.csv',header=T)
-> train1=train
-> train1$Pclass=as.factor(train1$Pclass)
-> train1$Survived=as.factor(train1$Survived)
+#Look at data for relevant features and missing data
 
-#Plot age vs survived with ggplot
-> library(ggplot2)
-> train2=train1[complete.cases(train1$Age),]
-> ggplot(train2,aes(x=Age,fill=Survived))+geom_bar(binwidth=0.5,position='dodge')
-> (train2,aes(x=Age,fill=Survived))+geom_density(alpha=0.2)
+train=read.csv('train.csv',header=T)
+dim(train)
+[1] 891  12
+names(train)
+[1] "PassengerId" "Survived"    "Pclass"      "Name"        "Sex"        
+ [6] "Age"         "SibSp"       "Parch"       "Ticket"      "Fare"       
+[11] "Cabin"       "Embarked" 
+str(train)
+
+#Copy original data and change Pclass and Surivived to factor
+train1=train
+train1$Pclass=as.factor(train1$Pclass)
+train1$Survived=as.factor(train1$Survived)
+
+#Some data in Age is missing
+sum(is.na(train1$Age))
+[1] 177
+train2=train1[complete.cases(train1$Age),]
+dim(train2)
+[1] 714  12
+dim(train1)
+[1] 891  12
+
+#Plot Age vs surivived,in barplot and density plot
+#Conclude Age is relevant in predicting survival
+ggplot(train2,aes(x=Age,fill=Survived))+geom_bar(binwidth=0.5,position='dodge')
+ggplot(train2,aes(x=Age,fill=Survived))+geom_density(alpha=0.2)
 
 #Plot Pclass vs survived
-> ggplot(train1,aes(x=Pclass,fill=Survived))+geom_bar(binwidth=0.5,position='dodge')
+#Conclude Pclass is relevant in predicting survival.Pclass=1 or 2 survived more than Pclass=3.
+sum(is.na(train1$Pclass))
+[1] 0
+ggplot(train1,aes(x=Pclass,fill=Survived))+geom_bar(binwidth=0.5,position='dodge')
 
-#Plot sex vs survived
-> ggplot(train1,aes(x=Sex,fill=Survived))+geom_bar(binwidth=0.5,position='dodge')
+#Plot Sex vs Survived
+#Conclude Sex is relevant in predicting survival.Female survived more than male.
+sum(is.na(train1$Sex))
+[1] 0
+ggplot(train1,aes(x=Sex,fill=Survived))+geom_bar(binwidth=0.5,position='dodge')
 
-#Use ggplot and table to explore SibSp and Parch
-> ggplot(train1,aes(x=SibSp,fill=Survived))+geom_bar(binwidth=0.5)
-> train1.table1=table(train1$Survived,train1$SibSp)
-> barplot(prop.table(train1.table1,2))
-> train1.table2=table(train1$Survived,train1$Parch)
-> barplot(prop.table(train1.table2,2))
+#Explore SibSp vs Survived with ggplot,table,and barplot
+#Conclude SibSp is relevant in predicting survival.Having 1 or 2 SibSp improved survival. Having >2SibSp, especially>4SibSp, decreased chance of survival.
+sum(is.na(train1$SibSp))
+[1] 0
+ggplot(train1,aes(x=SibSp,fill=Survived))+geom_bar(binwidth=0.5)
+#Low end of the barplot has few data points. Use table and barplot to have a better look.
+table(train1$SibSp,train1$Survived)
+   
+      0   1
+  0 398 210
+  1  97 112
+  2  15  13
+  3  12   4
+  4  15   3
+  5   5   0
+  8   7   0
+barplot(prop.table(table(train1$Survived,train1$SibSp),2))
 
-#Plot fare vs survived
-> p1=ggplot(train1,aes(x=Fare,fill=Survived))+geom_bar()
-> p2=ggplot(train1,aes(x=Fare,fill=Survived))+geom_density(alpha=0.5)
-> multiplot(p1,p2,cols=2)
+#Do the same for Parch
+#Conclude Parch is relevant for predicting survial,in a similar trend as SibSp.Having 1 or 2 Parch improved survival. Having >3Parch decreased chance of survival.
+sum(is.na(train1$Parch))
+[1] 0
+ggplot(train1,aes(x=Parch,fill=Survived))+geom_bar(binwidth=0.5)
+table(train1$Parch,train1$Survived)
+   
+      0   1
+  0 445 233
+  1  53  65
+  2  40  40
+  3   2   3
+  4   4   0
+  5   4   1
+  6   1   0
+barplot(prop.table(table(train1$Survived,train1$Parch),2))
 
-#First attempt in making models; remove NA from age in both train; 
-use Pclass, Sex, Age, Sibsp, Parch, Fare, Embarked as features
-> train3=train2[,c(2,3,5,6,7,8,10,12)]
+#Plot Fare vs Survived
+#Conclude that Fare is relevant to survival.Higher fare improved survival.
+sum(is.na(train1$Fare))
+[1] 0
+ggplot(train1,aes(x=Fare,fill=Survived))+geom_bar()
+ggplot(train1,aes(x=Fare,fill=Survived))+geom_density(alpha=0.5)
+#To have a better look at fare<100, where most data points concentrate
+ggplot(train1[train1$Fare<100,],aes(x=Fare,fill=Survived))+geom_bar()
+ggplot(train1[train1$Fare<100,],aes(x=Fare,fill=Survived))+ geom_density(alpha=0.5)
 
-#Clean up test data; remove NA from Age and Fare; change levels in Embarked
-> test=read.csv('test.csv',header=T)
-> Survived=rep('None',nrow(test))
-> test1=data.frame(test,Survived)
-> test2=test1
-> test2$Pclass=as.factor(test2$Pclass)
-> test3=test2[complete.cases(test2$Age),]
-> test4=test3[complete.cases(test3$Fare),]
-> test5=test4[,c(12,2,4,5,6,7,9,11)]
-> levels(test5$Embarked)=c("","C","Q","S")
+#Both "Ticket" and "Cabin" have too many levels. I didn't include them as relevant features.
 
-#Use randomforest to build models and make predictions
-> library(randomForest)
-> rf1=randomForest(Survived~.,data=train3,mtyr=2,importance=TRUE)
-> pred1=predict(rf1,test5)
-> final=data.frame(test4$PassengerId,pred1)
-> final1=final[order(final$test3.PassengerId),]
-> names(final1)=c('PassengerId','Survived')
-> write.csv(final1, file = "submission1.csv", row.names = FALSE)
-
-#For passenger with NA, the model cannot make a prediciton
-> sum(is.na(pred2)) 
-
-#Find one NA in test$Fare; fill with median fare price
-> test2[is.na(test$Fare),] 
-> summary(train3[train3$Pclass==3,]$Fare)
-> test2[153,]$Fare=13.23
-
-#With missing age, extract title from name and look for median age of each class of title
-
-
-
-
-
+#Use table and plot to look at "Embark".Conclude it is relevant.
+#Notice there are four levels of factors, with one empty level.
+sum(is.na(train1$Embark))
+[1] 0
+table(train1$Embark,train1$Survived)
+   
+      0   1
+      0   2
+  C  75  93
+  Q  47  30
+  S 427 217
+barplot(prop.table(table(train1$Survived,train1$Embark),2))
 
