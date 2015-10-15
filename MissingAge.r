@@ -1,16 +1,81 @@
-> train=read.csv('train.csv',header=T)
-> train1=train
-> train1$Pclass=as.factor(train1$Pclass)
-> train1$Survived=as.factor(train1$Survived)
+#Build models with missing data. Then fill in missing data points.
 
-> test=read.csv('test.csv',header=T)
-> Survived=rep('None',nrow(test))
-> test1=data.frame(test,Survived)
-> test2=test1
-> test2$Pclass=as.factor(test2$Pclass)
+train=read.csv('train.csv',header=T)
+train1=train
+train1$Pclass=as.factor(train1$Pclass)
+train1$Survived=as.factor(train1$Survived)
 
-#Write a function to extrac titles
-> extractTitle=function(name){
+#Remove missing Age
+train2=train1[complete.cases(train1$Age),]
+
+#Keep relevant features(PClass,Age,Sex,SibSp,Parch,Fare,Embarked)
+train3=train2[,c(2,3,5,6,7,8,10,12)]
+names(train3)
+[1] "Survived" "Pclass"   "Sex"      "Age"      "SibSp"    "Parch"   
+[7] "Fare"     "Embarked"
+
+#Get test data
+test=read.csv('test.csv',header=T)
+dim(test)
+[1] 418  11
+names(test)
+ [1] "PassengerId" "Pclass"      "Name"        "Sex"         "Age"        
+ [6] "SibSp"       "Parch"       "Ticket"      "Fare"        "Cabin"      
+[11] "Embarked"   
+
+#Change Pclass to factor. "test" has missing data in Age and Fare.
+test1=test
+test1$Pclass=as.factor(test1$Pclass)
+sum(is.na(test1$Age))
+[1] 86
+sum(is.na(test1$Fare))
+[1] 1
+
+#Add a column "Survived" as "test2"
+Survived=rep('None',nrow(test1))
+test2=data.frame(test1,Survived)
+dim(test2)
+[1] 418  12
+
+#Take the revelant features as "test3"
+test3=test2[,c(12,2,4,5,6,7,9,11)]
+names(test3)
+[1] "Survived" "Pclass"   "Sex"      "Age"      "SibSp"    "Parch"   
+[7] "Fare"     "Embarked"
+
+#"test" has three levels for "Embarked".Change that to four levels.
+levels(test3$Embarked)
+[1] "C" "Q" "S"
+levels(test3$Embarked)=c("","C","Q","S")
+
+#Build randomForest model with "train3" and predict on "test3"
+library(randomForest)
+rf1=randomForest(Survived~.,data=train3,mtyr=2,importance=TRUE)
+pred1=predict(rf1,test3
+
+#Combine "pred1" with "PassengerId"
+final=data.frame(test2$PassengerId,pred1)
+dim(final)
+[1] 418   2
+sum(is.na(final))
+[1] 87
+
+#But records with missing data cannot be predicted
+
+#Fill in missing fare 
+test2[is.na(test$Fare),]
+    PassengerId Pclass               Name  Sex  Age SibSp Parch Ticket
+153        1044      3 Storey, Mr. Thomas male 60.5     0     0   3701
+    Fare Cabin Embarked Survived
+153   NA              S     None
+#This passenger is in Pclass=3.Fill in missing Fare with median price from train$Fare where Pclass=3.
+summary(train1[train1$Pclass==3,]$Fare)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   0.00    7.75    8.05   13.68   15.50   69.55 
+test2[153,]$Fare=8.05
+
+#To fill in missing Age, use Title from name
+extractTitle=function(name){
 + if (length(grep('Miss',name))>0){return ('Miss')}
 + if (length(grep('Master',name))>0){return ('Master')}
 + if (length(grep('Mrs',name))>0){return ('Mrs')}
@@ -18,95 +83,28 @@
 + else {return ('other')}
 + }
 
-#Distribution of titles in those with missing age
-> titles=NULL
-> trainNA=train1[is.na(train1$Age),]
-> for (i in 1:nrow(trainNA)){
-+ titles=c(titles,extractTitle(trainNA[i,'Name']))
+#Use median age to fill in missingAge in "train1" to get "trainComplete"
+Title=NULL
+for (i in 1:nrow(train1)){
++ Title=c(Title,extractTitle(train1[i,'Name']))
 + }
-> table(titles)
-titles
+table(Title)
+Title
 Master   Miss     Mr    Mrs  other 
-     4     36    119     17      1 
-> trainNA1=data.frame(trainNA,titles)
-
-#Extract title from "train2" and find median age for each title class
-> train2=train1[complete.cases(train1$Age),]
-> titles2=NULL
-> for (i in 1:nrow(train2)){
-+ titles2=c(titles,extractTitle(train2[i,'Name']))
-+ } 
-> table(titles2)
-titles2
-Master   Miss     Mr    Mrs  other 
-    36    146    399    110     23
-> train2.title=data.frame(train2,titles2)
-
-> summary(train2.title[train2.title$titles2=='Miss',]$Age)
-   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-   0.75   14.12   21.00   21.77   30.00   63.00 
-> summary(train2.title[train2.title$titles2=='Master',]$Age)
-   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-  0.420   1.000   3.500   4.574   8.000  12.000 
-> summary(train2.title[train2.title$titles2=='Mrs',]$Age)
-   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-  14.00   27.25   35.00   35.90   44.00   63.00 
-> summary(train2.title[train2.title$titles2=='Mr',]$Age)
-   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-  11.00   23.00   30.00   32.41   39.00   80.00 
-> summary(train2.title[train2.title$titles2=='other',]$Age)
-   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-  23.00   30.00   44.00   42.65   53.00   70.00 
-
-#Use the mean age for each title group to replace missing age in “train1”
->titles=NULL
-> for (i in 1:nrow(train1)){
-+ titles=c(titles,extractTitle(train1[i,'Name']))
-+ }
-> table(titles)
-titles
-Master   Miss     Mr    Mrs  other 
-    40    182    518    127     24
-> train1.title=data.frame(train1,titles) 
-
-> train1.na=train1.title[is.na(train1.title$Age),]
-> train1.na[train1.na$titles=='Miss',]$Age=21.77
-> train1.na[train1.na$titles=='Master',]$Age=4.57
-> train1.na[train1.na$titles=='Mrs',]$Age=35.90
-> train1.na[train1.na$titles=='Mr',]$Age=32.41
-> train1.na[train1.na$titles=='other',]$Age=42.65
-
-> names(train2.title)[13]='titles'
-> train3=rbind(train2.title,train1.na)
-> train4=train3[,c(2,3,5,6,7,8,10,12)]
-
-
-#Replace missing age in “test2”
-> titles=NULL
-> for (i in 1:nrow(test2)){
-+ titles=c(titles,extractTitle(test2[i,'Name']))
-+ }
-> table(titles)
-titles
-Master   Miss     Mr    Mrs  other 
-    21     78    240     72      7 
-
-> test2.title=data.frame(test2,titles)
-
-> test2.na=test2.title[is.na(test2.title$Age),]
-> test2.na[test2.na$titles=='Miss',]$Age=21.77
-> test2.na[test2.na$titles=='Master',]$Age=4.57
-> test2.na[test2.na$titles=='Mrs',]$Age=35.90
-> test2.na[test2.na$titles=='Mr',]$Age=32.41
-> test2.na[test2.na$titles=='other',]$Age=42.65
-
-> test2.a=test2.title[complete.cases(test2.title$Age),]
-> test3=rbind(test2.a,test2.na)
-
-> test4=test3[,c(12,2,4,5,6,7,9,11)]
-> levels(test4$Embarked)=c("","C","Q","S")
-
-
-
-
-
+    40    182    518    127     24 
+train1.title=data.frame(train1,Title)
+trainNA=train1.title[is.na(train1.title$Age),]
+summary(train1.title[train1.title$Title=='Miss',]$Age)
+trainNA[trainNA$Title=='Miss',]$Age=21.00
+summary(train1.title[train1.title$Title=='Master',]$Age)
+trainNA[trainNA$Title=='Master',]$Age=3.500
+summary(train1.title[train1.title$Title=='Mrs',]$Age)
+trainNA[trainNA$Title=='Mrs',]$Age=35.00
+summary(train1.title[train1.title$Title=='Mr',]$Age)
+trainNA[trainNA$Title=='Mr',]$Age=30.00
+summary(train1.title[train1.title$Title=='other',]$Age)
+trainNA[trainNA$Title=='other',]$Age=44.00
+trainA=train1.title[complete.cases(train1.title$Age),]
+trainComplete=rbind(trainA,trainNA)
+sum(is.na(trainComplete$Age))
+[1] 0
