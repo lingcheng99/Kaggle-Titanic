@@ -25,6 +25,7 @@ dim(train1)
 
 #Plot Age vs surivived,in barplot and density plot
 #Conclude Age is relevant in predicting survival
+library(ggplot2)
 ggplot(train2,aes(x=Age,fill=Survived))+geom_bar(binwidth=0.5,position='dodge')
 ggplot(train2,aes(x=Age,fill=Survived))+geom_density(alpha=0.2)
 
