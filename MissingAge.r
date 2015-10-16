@@ -51,7 +51,7 @@ levels(test3$Embarked)=c("","C","Q","S")
 #Build randomForest model with "train3" and predict on "test3"
 library(randomForest)
 rf1=randomForest(Survived~.,data=train3,mtyr=2,importance=TRUE)
-pred1=predict(rf1,test3
+pred1=predict(rf1,test3)
 
 #Combine "pred1" with "PassengerId"
 final=data.frame(test2$PassengerId,pred1)
@@ -70,8 +70,7 @@ test2[is.na(test$Fare),]
 153   NA              S     None
 #This passenger is in Pclass=3.Fill in missing Fare with median price from train$Fare where Pclass=3.
 summary(train1[train1$Pclass==3,]$Fare)
-   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-   0.00    7.75    8.05   13.68   15.50   69.55 
+
 test2[153,]$Fare=8.05
 
 #To fill in missing Age, use Title from name
